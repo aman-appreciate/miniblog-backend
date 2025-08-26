@@ -1,0 +1,41 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.venv/
+env/
+ENV/
+
+# Flask instance folder (for local files like SQLite, uploads)
+instance/
+
+# SQLite database (if using locally, don’t push to GitHub)
+*.db
+*.sqlite3
+
+# Environment & secrets
+*.env
+.env.*
+secrets.json
+
+# IDE/editor configs
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+
+# Testing & coverage
+.coverage
+htmlcov/
+pytest_cache/
+.tox/
+.mypy_cache/
+.pytest_cache/
