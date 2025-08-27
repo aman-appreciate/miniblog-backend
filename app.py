@@ -28,14 +28,14 @@ def invalid_token_callback(error):
     return jsonify({
         "error": "invalid_token",
         "message": "The token is invalid."
-    }), 422
+    }), 401
 
 @jwt.unauthorized_loader
 def missing_token(err):
     return jsonify({
         "error":"token missing",
         "message":"request to login again"
-    })
+    }), 400
 
 #user model
 class User(db.Model):
@@ -67,19 +67,19 @@ with app.app_context():
 #home route
 @app.route('/', methods= ['GET'])
 def home():
-    return "this is home"
+    return "this is home", 200
 
 #register route
 @app.route('/register', methods= ['POST'])
 def register():
     username= request.form.get('username')
     password = request.form.get('password')
-    print(username, password)
+    #print(username, password)
     if not username or not password:
-        return jsonify({"message": "one field missing"})
+        return jsonify({"message": "one field missing"}), 400
     exuser= User.query.filter_by(username=username).first()
     if exuser:
-        return jsonify({"message": "user already exist"})
+        return jsonify({"message": "user already exist"}), 400
     hashed_password= generate_password_hash(password)
     try:
         new_user = User(
@@ -88,7 +88,7 @@ def register():
         )
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({"message": "Success! User added to it"})
+        return jsonify({"message": "Success! User added to it"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"message":"Error adding the user"}), 500
@@ -99,15 +99,15 @@ def login():
     username= request.form.get('username')
     password= request.form.get('password')
     if not username or not password:
-        return jsonify({"message":"missing fields"})
+        return jsonify({"message":"missing fields"}), 400
     user= User.query.filter_by(username=username).first()
     if not user:
-        return jsonify({"message":"user not exist"})
+        return jsonify({"message":"user not exist"}), 400
     if check_password_hash(user.password, password):
         token= create_access_token(identity=str(user.id))
-        return jsonify({"message": "login success", "token":token})
+        return jsonify({"message": "login success", "token":token}), 200
     else:
-        return jsonify({"message": "wrong password"})
+        return jsonify({"message": "wrong password"}), 500
     
 
 #forget password route
@@ -116,24 +116,23 @@ def forget_password():
     username= request.form.get('username')
     new_password= request.form.get('password')
     if not username or not new_password:
-        return jsonify({"message": "missing fields"})
+        return jsonify({"message": "missing fields"}), 400
     user= User.query.filter_by(username=username).first()
     if not user:
-        return jsonify({"message": "user not exist"})
+        return jsonify({"message": "user not exist"}), 400
     user.password= generate_password_hash(new_password)
     try:
         db.session.commit()
-        return jsonify({"message": "password reset successfully"})
+        return jsonify({"message": "password reset successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message":"database is busy"})
+        return jsonify({"message":"database is busy"}), 500
 
 #my posts
 @app.route('/my-posts')
 @jwt_required()
 def get_all_posts():
     user_id= int(get_jwt_identity())
-    user_id= 1
     raw_post=Post.query.filter_by(user_id=user_id).all()
     posts=[]
     for post in raw_post:
@@ -142,26 +141,23 @@ def get_all_posts():
             "text": post.text,
             "created_at": post.created_on.isoformat()
         })
-    if not posts:
-        return jsonify({"message":"no posts"})
-    print(raw_post)
-    return jsonify({"posts": posts})
+    return jsonify({"posts": posts, "message":"success"}), 200
 
 #create post
 @app.route('/create-post', methods=["POST"])
 @jwt_required()
 def create_post():
     data= request.get_json()
-    print(data)
+    #print(data)
     if not data or not data.get("text"):
-        return jsonify({"message": "Invalid data"})
+        return jsonify({"message": "Invalid data"}), 400
     text= data.get("text")
     user_id = get_jwt_identity()
     if not text or not user_id:
-        return jsonify({"message":"missing fields"})
+        return jsonify({"message":"missing fields"}), 400
     user= User.query.get(user_id)
     if not user: 
-        return jsonify({"message": "user not found"})
+        return jsonify({"message": "user not found"}), 400
     
     new_post= Post(
         text= text,
@@ -173,7 +169,7 @@ def create_post():
         return jsonify({"message": "post created"}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": "Error creating the post"})
+        return jsonify({"message": "Error creating the post"}), 500
 
 #update post
 @app.route('/update-post/<int:post_id>', methods=["PUT"])
@@ -187,10 +183,9 @@ def update_post(post_id):
     post = Post.query.get(post_id)
     if not post:
         return jsonify({"message": "Post not found"}), 404
-    print(post.user_id ,user_id)
-    #need to check owner
+    #print(post.user_id ,user_id)
     if post.user_id != user_id:
-        return jsonify({"message": "this is not your post"})
+        return jsonify({"message": "this is not your post"}), 403
     try:
         post.text = text
         db.session.commit()
@@ -208,7 +203,7 @@ def delete_post(post_id):
         return jsonify({"message": "Post not found"}), 404
     user_id= int(get_jwt_identity())
     if post.user_id != user_id:
-        return jsonify({"message":"this is not your post"})
+        return jsonify({"message":"this is not your post"}), 403
     try:
         db.session.delete(post)
         db.session.commit()
@@ -226,7 +221,7 @@ def get_all_comments(post_id):
         {"id": c.id, "text": c.text, "created_on":c.created_on.isoformat()}
         for c in raw_comments
     ]
-    return jsonify({"comments": comments})
+    return jsonify({"comments": comments}), 200
 
 #creating comment  
 @app.route('/create-comment/<int:post_id>', methods=["POST"])
@@ -234,14 +229,14 @@ def get_all_comments(post_id):
 def create_comment(post_id):
     data = request.get_json()
     if not data:
-        return jsonify({"message":"Invalid data"})
+        return jsonify({"message":"Invalid data"}), 400
     user_id= int(get_jwt_identity())
     text= data.get("text")
     if not text or not post_id or not user_id:
-        return jsonify({"message": "Missing fields"})
+        return jsonify({"message": "Missing fields"}), 400
     post = Post.query.get(post_id)
     if not post:
-        return jsonify({"message": "page not found"})
+        return jsonify({"message": "page not found"}), 404
     new_comment = Comment(
         text= text,
         post_id= post_id,
@@ -250,17 +245,16 @@ def create_comment(post_id):
     try:
         db.session.add(new_comment)
         db.session.commit()
-        return jsonify({"message": "comment created"})
+        return jsonify({"message": "comment created"}), 200
     except Exception as e:
         db.session.rollback()
-        return ({"message": "some error occured"})
+        return ({"message": "some error occured"}), 500
 
 #deleting the comment
 @app.route('/delete-comment/<int:comment_id>', methods=["DELETE"])
 @jwt_required()
 def delete_comment(comment_id):
     user_id= int(get_jwt_identity())
-    user_id= 1
     comment = Comment.query.get(comment_id)
     if not comment:
         return jsonify({"message": "Comment not found"}), 404
