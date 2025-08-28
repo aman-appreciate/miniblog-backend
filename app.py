@@ -105,7 +105,7 @@ def login():
         return jsonify({"message":"user not exist"}), 400
     if check_password_hash(user.password, password):
         token= create_access_token(identity=str(user.id))
-        return jsonify({"message": "login success", "token":token}), 200
+        return jsonify({"message": "login success", "token":token, "username":user.username}), 200
     else:
         return jsonify({"message": "wrong password"}), 500
     
