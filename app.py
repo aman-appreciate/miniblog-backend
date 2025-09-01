@@ -5,6 +5,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from flask_jwt_extended import create_access_token, JWTManager, jwt_required, get_jwt_identity
 import os
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 load_dotenv()
 
@@ -15,6 +18,12 @@ app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=60)
 db= SQLAlchemy(app)
 jwt= JWTManager(app)
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key= os.getenv("CLOUDINARY_API_KEY"),
+    api_secret= os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True
+)
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
@@ -49,8 +58,10 @@ class User(db.Model):
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key= True)
     text = db.Column(db.Text, nullable= False)
+    image_url= db.Column(db.String(500), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable= False)
     likes = db.Column(db.Integer, default=0)
+    noofcomments= db.Column(db.Integer, default=0)
     created_on = db.Column(db.DateTime, default= datetime.utcnow)
     comments = db.relationship("Comment", backref='post', lazy=True)
 #comment model
@@ -139,7 +150,10 @@ def get_all_posts():
         posts.append({
             "id":post.id,
             "text": post.text,
-            "created_at": post.created_on.isoformat()
+            "image_url": post.image_url,
+            "created_at": post.created_on.isoformat(),
+            "likes": post.likes,
+            "noofcomments": post.noofcomments
         })
     return jsonify({"posts": posts, "message":"success"}), 200
 
@@ -147,28 +161,45 @@ def get_all_posts():
 @app.route('/create-post', methods=["POST"])
 @jwt_required()
 def create_post():
-    data= request.get_json()
-    #print(data)
-    if not data or not data.get("text"):
-        return jsonify({"message": "Invalid data"}), 400
-    text= data.get("text")
-    user_id = get_jwt_identity()
-    if not text or not user_id:
-        return jsonify({"message":"missing fields"}), 400
-    user= User.query.get(user_id)
-    if not user: 
-        return jsonify({"message": "user not found"}), 400
-    
-    new_post= Post(
-        text= text,
-        user_id= int(user_id)
-    )
     try:
+        text = request.form.get("text")
+        image = request.files.get("image")
+        user_id = get_jwt_identity()
+
+        if not text or not user_id:
+            return jsonify({"message": "Missing required fields"}), 400
+
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        image_url = None
+        if image:
+            upload_result = cloudinary.uploader.upload(image)
+            image_url = upload_result.get("secure_url")
+
+        new_post = Post(
+            text=text,
+            user_id=int(user_id),
+            image_url=image_url 
+        )
+
         db.session.add(new_post)
         db.session.commit()
-        return jsonify({"message": "post created"}), 201
+
+        return jsonify({
+            "message": "Post created successfully",
+            "post": {
+                "id": new_post.id,
+                "text": new_post.text,
+                "user_id": new_post.user_id,
+                "image_url": new_post.image_url
+            }
+        }), 201
+
     except Exception as e:
         db.session.rollback()
+        print("Error creating post:", e)
         return jsonify({"message": "Error creating the post"}), 500
 
 #update post
