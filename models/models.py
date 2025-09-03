@@ -7,8 +7,8 @@ class User(db.Model):
     username = db.Column(db.String(200) , nullable= False)
     password = db.Column(db.String(200), nullable= False)
     created_on = db.Column(db.DateTime, default= datetime.utcnow)
-    posts = db.relationship("Post", backref="author", lazy=True)
-    comments = db.relationship("Comment", backref='author', lazy= True)
+    posts = db.relationship("Post", backref="author", lazy="dynamic")
+    comments = db.relationship("Comment", backref='author', lazy= "dynamic")
 #post model
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key= True)
@@ -18,7 +18,7 @@ class Post(db.Model):
     likes = db.Column(db.Integer, default=0)
     noofcomments= db.Column(db.Integer, default=0)
     created_on = db.Column(db.DateTime, default= datetime.utcnow)
-    comments = db.relationship("Comment", backref='post', lazy=True)
+    comments = db.relationship("Comment", backref='post', lazy="dynamic")
 #comment model
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key= True)

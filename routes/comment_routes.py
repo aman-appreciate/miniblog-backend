@@ -17,7 +17,10 @@ def home():
 def get_all_comments(post_id):
     raw_comments= Comment.query.filter_by(post_id=post_id).all()
     comments=[
-        {"id": c.id, "text": c.text, "created_on":c.created_on.isoformat()}
+        {"id": c.id, "text": c.text, "created_on":c.created_on.isoformat(), "author": {
+            "id": c.author.id,
+            "username":c.author.username
+        }}
         for c in raw_comments
     ]
     return jsonify({"comments": comments}), 200
@@ -26,7 +29,9 @@ def get_all_comments(post_id):
 @comment_bp.route('/create-comment/<int:post_id>', methods=["POST"])
 @jwt_required()
 def create_comment(post_id):
+    print(post_id)
     data = request.get_json()
+    print(data)
     if not data:
         return jsonify({"message":"Invalid data"}), 400
     user_id= int(get_jwt_identity())
@@ -46,6 +51,7 @@ def create_comment(post_id):
         db.session.commit()
         return jsonify({"message": "comment created"}), 200
     except Exception as e:
+        print(e);
         db.session.rollback()
         return ({"message": "some error occured"}), 500
 
