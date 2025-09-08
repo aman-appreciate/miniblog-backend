@@ -31,7 +31,6 @@ def get_all_comments(post_id):
 def create_comment(post_id):
     print(post_id)
     data = request.get_json()
-    print(data)
     if not data:
         return jsonify({"message":"Invalid data"}), 400
     user_id= int(get_jwt_identity())
@@ -40,7 +39,8 @@ def create_comment(post_id):
         return jsonify({"message": "Missing fields"}), 400
     post = Post.query.get(post_id)
     if not post:
-        return jsonify({"message": "page not found"}), 404
+        return jsonify({"message": "post not found"}), 404
+    post.noofcomments = (post.noofcomments or 0) + 1
     new_comment = Comment(
         text= text,
         post_id= post_id,
@@ -51,7 +51,7 @@ def create_comment(post_id):
         db.session.commit()
         return jsonify({"message": "comment created"}), 200
     except Exception as e:
-        print(e);
+        print(e)
         db.session.rollback()
         return ({"message": "some error occured"}), 500
 
@@ -76,5 +76,6 @@ def delete_comment(comment_id):
         db.session.commit()
         return jsonify({"message": "Comment deleted"}), 200
     except Exception as e:
+
         db.session.rollback()
         return jsonify({"message": "Error deleting comment", "error": str(e)}), 500

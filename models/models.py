@@ -18,7 +18,7 @@ class Post(db.Model):
     likes = db.Column(db.Integer, default=0)
     noofcomments= db.Column(db.Integer, default=0)
     created_on = db.Column(db.DateTime, default= datetime.utcnow)
-    comments = db.relationship("Comment", backref='post', lazy="dynamic")
+    comments = db.relationship("Comment", backref='post', lazy="dynamic", cascade="all, delete-orphan")
 #comment model
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key= True)
@@ -26,3 +26,11 @@ class Comment(db.Model):
     created_on = db.Column(db.DateTime, default= datetime.utcnow)
     post_id = db.Column(db.Integer, db.ForeignKey("post.id"), nullable= False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable= False)
+
+
+class PostLike(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey("post.id"), nullable=False)
+    created_on = db.Column(db.DateTime, default=datetime.utcnow)
+
